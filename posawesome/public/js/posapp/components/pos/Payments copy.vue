@@ -631,18 +631,18 @@
           <v-btn
             block
             large
-            color="success"
+            color="primary"
             dark
             @click="submit"
             :disabled="vaildatPayment"
-            >{{ __("Submit & WhatsApp") }}</v-btn
+            >{{ __("Submit") }}</v-btn
           >
         </v-col>
         <v-col cols="6" class="pl-1">
           <v-btn
             block
             large
-            color="primary"
+            color="success"
             dark
             @click="submit(undefined, false, true)"
             :disabled="vaildatPayment"
@@ -695,20 +695,6 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
-      <v-dialog v-model="showManualWhatsApp" max-width="500">
-        <v-card>
-          <v-card-title>Kirim Invoice via WhatsApp</v-card-title>
-          <v-card-text>
-            <v-text-field v-model="manualName" label="Nama Customer"></v-text-field>
-            <v-text-field v-model="manualNumber" label="Nomor WhatsApp"></v-text-field>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn text @click="showManualWhatsApp = false">Batal</v-btn>
-            <v-btn color="primary" @click="send_whatsapp_manual">Kirim</v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
     </div>
   </div>
 </template>
@@ -742,9 +728,6 @@ export default {
     pos_settings: "",
     customer_info: "",
     mpesa_modes: [],
-    showManualWhatsApp: false,
-    manualName: "",
-    manualNumber: "+62",
   }),
 
   methods: {
@@ -871,86 +854,6 @@ export default {
 
       evntBus.$emit("new_invoice", "false");
       this.back_to_invoice();
-
-      if (!print) {
-        let cust_id = this.invoice_doc.customer || "";
-
-        if (cust_id) {
-          frappe.db.get_value("Customer", cust_id, ["customer_name", "nomor_whatsapp"])
-            .then(r => {
-              let data = r.message || {};
-              let cust_name = data.customer_name || cust_id;
-              let cust_phone = data.nomor_whatsapp || "+62";
-
-              if (cust_phone) {
-                cust_phone = cust_phone.replace(/[^+\d]/g, ''); // bersihkan nomor dari karakter non-digit
-              }
-
-              // kalau nama customer mengandung UMUM → nomor default
-              if (cust_name && cust_name.toUpperCase().includes("UMUM")) {
-                this.manualName = "";
-                this.manualNumber = "+62";
-              } else {
-                this.manualName = cust_name;
-                this.manualNumber = cust_phone;
-              }
-
-              this.showManualWhatsApp = true; // munculkan popup setelah data siap
-            });
-        } else {
-          this.manualName = "";
-          this.manualNumber = "+62";
-          this.showManualWhatsApp = true;
-        }
-      }
-    },
-
-    send_whatsapp_manual() {
-    // === Validasi nomor WA ===
-      if (!this.manualNumber.startsWith("+628")) {
-        frappe.msgprint(__("Nomor harus diawali dengan +628"));
-        return;
-      }
-      if (this.manualNumber.startsWith("+6208")) {
-        frappe.msgprint(__("Nomor tidak boleh diawali dengan +6208, gunakan +628"));
-        return;
-      }
-      if (this.manualNumber.length < 10) {
-        frappe.msgprint(__("Nomor WhatsApp terlalu pendek"));
-        return;
-      }
-
-      frappe.call({
-        method: "whatsapp_tools.api.save_pos_customer_contact",
-        args: {
-          docname: this.invoice_doc.name,
-          manual_name: this.manualName,
-          manual_number: this.manualNumber,
-          pos_profile: this.pos_profile?.name || this.invoice_doc.pos_profile,  
-          cost_center: this.invoice_doc.cost_center,
-        }
-      });
-
-      // === Panggil backend untuk generate link WA ===
-      frappe.call({
-        method: "whatsapp_tools.api.get_whatsapp_link",
-        args: {
-          docname: this.invoice_doc.name,   // pakai invoice yang baru disubmit
-          template_name: "Sales Invoice",
-          manual_name: this.manualName,
-          manual_number: this.manualNumber,
-        },
-        callback: (r) => {
-          if (r.message) {
-            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-            const link = isMobile ? r.message.api : r.message.web;
-            window.open(link, "_blank");   // buka WhatsApp
-            this.showManualWhatsApp = false;
-          } else {
-            frappe.msgprint(__("Tidak dapat membuat link WhatsApp"));
-          }
-        },
-      });
     },
     submit_invoice(print) {
       let totalPayedAmount = 0;

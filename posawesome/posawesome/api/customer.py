@@ -49,3 +49,32 @@ def validate_referral_code(doc):
             exist = frappe.db.exists("Referral Code", {"referral_code": referral_code})
         if not exist:
             frappe.throw(_("This Referral Code {0} not exists").format(referral_code))
+
+@frappe.whitelist()
+def check_customer_status(customer):
+    """Return enabled/disabled status of customer"""
+    if not customer:
+        return {"status": "not_found"}
+
+    disabled = frappe.db.get_value("Customer", customer, "disabled")
+    customer_name = frappe.db.get_value("Customer", customer, "customer_name")
+    gem_poin = frappe.db.get_value("Customer", customer, "gem_poin")
+
+    if "UMUM" not in customer:
+        if disabled == 1:
+            return {
+                "status": "disabled",
+                "message": (
+                    f"⚠️ Status Member Customer <b><big>{customer_name}</big></b> ({customer}) sudah Berakhir! "
+                    f"Silakan perpanjang untuk bisa digunakan kembali.<br>"
+                    f"<b><big>Poin Gembira = {gem_poin} poin</big></b>"
+                ),
+            }
+        else:
+            return {
+                "status": "enabled",
+                "message": (
+                    f"✅ Customer <b><big>{customer_name}</big></b> ({customer}) aktif dan bisa digunakan.<br>"
+                    f"<b><big>Poin Gembira = {gem_poin} poin</big></b>"
+                )
+            }

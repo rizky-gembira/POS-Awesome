@@ -12,6 +12,7 @@
   "description",
   "column_break_4",
   "disable",
+  "offer_tag",
   "section_break_3",
   "apply_on",
   "offer",
@@ -305,13 +306,21 @@
    "fieldname": "coupon_based",
    "fieldtype": "Check",
    "label": "Coupon Code Based"
+  },
+  {
+   "fieldname": "offer_tag",
+   "fieldtype": "Data",
+   "label": "Offer Tag",
+   "reqd": 1
   }
  ],
  "index_web_pages_for_search": 1,
- "modified": "2021-07-25 17:09:55.634113",
+ "links": [],
+ "modified": "2026-01-09 09:55:50.360156",
  "modified_by": "Administrator",
  "module": "POSAwesome",
  "name": "POS Offer",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
@@ -385,5 +394,6 @@
  "show_preview_popup": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

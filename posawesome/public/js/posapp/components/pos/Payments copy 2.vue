@@ -920,17 +920,6 @@ export default {
         return;
       }
 
-      frappe.call({
-        method: "whatsapp_tools.api.save_pos_customer_contact",
-        args: {
-          docname: this.invoice_doc.name,
-          manual_name: this.manualName,
-          manual_number: this.manualNumber,
-          pos_profile: this.pos_profile?.name || this.invoice_doc.pos_profile,  
-          cost_center: this.invoice_doc.cost_center,
-        }
-      });
-
       // === Panggil backend untuk generate link WA ===
       frappe.call({
         method: "whatsapp_tools.api.get_whatsapp_link",

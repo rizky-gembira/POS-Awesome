@@ -32,7 +32,8 @@
   "column_break_16",
   "taxes",
   "section_break_14",
-  "amended_from"
+  "amended_from",
+  "keterangan"
  ],
  "fields": [
   {
@@ -103,10 +104,12 @@
    "label": "Linked Invoices"
   },
   {
+   "allow_bulk_edit": 1,
    "fieldname": "pos_transactions",
    "fieldtype": "Table",
    "label": "POS Transactions",
-   "options": "Sales Invoice Reference"
+   "options": "Sales Invoice Reference",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_9",
@@ -188,19 +191,26 @@
    "reqd": 1
   },
   {
+   "allow_bulk_edit": 1,
    "fieldname": "pos_payments",
    "fieldtype": "Table",
    "label": "POS Payments",
-   "options": "POS Payment Entry Reference"
+   "options": "POS Payment Entry Reference",
+   "read_only": 1
   },
   {
    "fieldname": "section_break_if3m1",
    "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "keterangan",
+   "fieldtype": "Long Text",
+   "label": "Keterangan"
   }
  ],
  "is_submittable": 1,
  "links": [],
- "modified": "2023-06-12 03:01:49.146706",
+ "modified": "2026-01-08 09:27:47.660120",
  "modified_by": "Administrator",
  "module": "POSAwesome",
  "name": "POS Closing Shift",

@@ -1061,7 +1061,6 @@ export default {
       new_item.posa_notes = "";
       new_item.posa_delivery_date = "";
       new_item.posa_row_id = this.makeid(20);
-      new_item.offer_tag = item.offer_tag; // <-- Tambahkan ini Ikky
       if (
         (!this.pos_profile.posa_auto_set_batch && new_item.has_batch_no) ||
         new_item.has_serial_no
@@ -1348,7 +1347,6 @@ export default {
           posa_notes: item.posa_notes,
           posa_delivery_date: item.posa_delivery_date,
           price_list_rate: item.price_list_rate,
-          offer_tag: item.offer_tag, // <-- Tambahkan ini Ikky
         };
         items_list.push(new_item);
       });
@@ -2407,7 +2405,6 @@ export default {
         );
         if (existOffer) {
           existOffer.items = JSON.stringify(offer.items);
-          existOffer.offer_tag = offer.offer_tag; // <-- Tambahkan ini Ikky 2
           if (
             existOffer.offer === "Give Product" &&
             existOffer.give_item &&
@@ -2503,9 +2500,6 @@ export default {
           this.applyNewOffer(offer);
         }
       });
-      // if (this.posa_coupons.some(c => c.applied)) {
-      //   this.ApplyOnTotal("all");
-      // }
     },
 
     removeApplyOffer(invoiceOffer) {
@@ -2628,7 +2622,6 @@ export default {
         offer_applied: offer.offer_applied,
         coupon_based: offer.coupon_based,
         coupon: offer.coupon,
-        offer_tag: offer.offer_tag, // <-- Tambahkan ini Ikky 2
       };
       this.posa_offers.push(newOffer);
       this.addOfferToItems(newOffer);
@@ -2676,7 +2669,6 @@ export default {
           offer.discount_percentage == 0)
           ? 0
           : item.rate;
-      new_item.offer_tag = offer.offer_tag; // <-- Tambahkan ini Ikky
       if (
         (!this.pos_profile.posa_auto_set_batch && new_item.has_batch_no) ||
         new_item.has_serial_no
@@ -2700,7 +2692,6 @@ export default {
               item.discount_amount += offer.discount_amount;
             }
             item.posa_offer_applied = 1;
-            item.offer_tag = offer.offer_tag; // <-- Tambahkan ini Ikky
             this.calc_item_price(item);
           }
         }
@@ -2732,45 +2723,24 @@ export default {
         }
       });
     },
-    // Custom Offer Method Started Here
+
     ApplyOnTotal(offer) {
       if (!offer.name) {
-          offer = this.posOffers.find(posOffer => posOffer.name === offer.offer_name);
+        offer = this.posOffers.find((el) => el.name == offer.offer_name);
       }
-      if (!this.discount_percentage_offer_name || this.discount_percentage_offer_name === offer.name) {
-          if (offer.discount_percentage > 0 && offer.discount_percentage <= 100) {
-              const discountAmount = this.flt(this.Total) * parseFloat(offer.discount_percentage) / 100;
-              this.discount_amount = this.flt(discountAmount, this.currency_precision);
-              this.discount_percentage_offer_name = offer.name;
-          }
-          else if (offer.discount_percentage > 100)
-          {
-              const discountAmount = offer.discount_percentage;
-              this.discount_amount = this.flt(discountAmount, this.currency_precision);
-              this.discount_percentage_offer_name = offer.name;
-          }
+      if (
+        (!this.discount_percentage_offer_name ||
+          this.discount_percentage_offer_name == offer.name) &&
+        offer.discount_percentage > 0 &&
+        offer.discount_percentage <= 100
+      ) {
+        this.discount_amount = this.flt(
+          (flt(this.Total) * flt(offer.discount_percentage)) / 100,
+          this.currency_precision
+        );
+        this.discount_percentage_offer_name = offer.name;
       }
-  },
-
-    // End Custom Offer Method Here  
-
-    // ApplyOnTotal(offer) {
-    //   if (!offer.name) {
-    //     offer = this.posOffers.find((el) => el.name == offer.offer_name);
-    //   }
-    //   if (
-    //     (!this.discount_percentage_offer_name ||
-    //       this.discount_percentage_offer_name == offer.name) &&
-    //     offer.discount_percentage > 0 &&
-    //     offer.discount_percentage <= 100
-    //   ) {
-    //     this.discount_amount = this.flt(
-    //       (flt(this.Total) * flt(offer.discount_percentage)) / 100,
-    //       this.currency_precision
-    //     );
-    //     this.discount_percentage_offer_name = offer.name;
-    //   }
-    // },
+    },
 
     RemoveOnTotal(offer) {
       if (
@@ -2792,7 +2762,6 @@ export default {
               item_offers.push(offer.row_id);
               if (offer.offer === "Item Price") {
                 exist_item.posa_offer_applied = 1;
-                exist_item.offer_tag = offer.offer_tag; // <-- Tambahkan ini Ikky
               }
             }
             exist_item.posa_offers = JSON.stringify(item_offers);
@@ -2812,7 +2781,6 @@ export default {
             );
             if (offer.offer === "Item Price") {
               exist_item.posa_offer_applied = 0;
-              exist_item.offer_tag = ""; // <-- Tambahkan ini Ikky
             }
             exist_item.posa_offers = JSON.stringify(updated_item_offers);
           }

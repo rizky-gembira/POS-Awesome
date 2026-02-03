@@ -103,9 +103,6 @@ def make_sales_order(source_name, target_doc=None, ignore_permissions=True):
         target.delivery_date = (
             obj.posa_delivery_date or source_parent.posa_delivery_date
         )
-        # Tambahkan mapping offer_tag jika ada / Tambahkan ini Ikky
-        if hasattr(obj, "offer_tag"):
-            target.offer_tag = obj.offer_tag
 
     doclist = get_mapped_doc(
         "Sales Invoice",
@@ -121,7 +118,6 @@ def make_sales_order(source_name, target_doc=None, ignore_permissions=True):
                     "Warehouse": "warehouse",
                     "delivery_date": "posa_delivery_date",
                     "posa_notes": "posa_notes",
-                    "offer_tag": "offer_tag",  # <-- Tambahkan ini Ikky
                 },
                 "postprocess": update_item,
             },

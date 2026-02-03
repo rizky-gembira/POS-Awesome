@@ -17,7 +17,7 @@
         style="cursor: pointer"
         class="text-uppercase primary--text"
       >
-        <span class="font-weight-light">Gembira</span>
+        <span class="font-weight-light">GEMBIRA</span>
         <span>Houseware</span>
       </v-toolbar-title>
 

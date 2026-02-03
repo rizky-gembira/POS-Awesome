@@ -201,8 +201,7 @@ def get_items(
                 has_batch_no,
                 has_serial_no,
                 max_discount,
-                brand,
-                is_bundle
+                brand
             FROM
                 `tabItem`
             WHERE
@@ -306,32 +305,27 @@ def get_items(
                         fields=["attribute", "attribute_value"],
                         filters={"parent": item.item_code, "parentfield": "attributes"},
                     )
-                # if posa_display_items_in_stock and (
-                #     not item_stock_qty or item_stock_qty < 0
-                # ):
-                    #pass
-                if posa_display_items_in_stock and (not item_stock_qty or item_stock_qty < 0):
-                    # kalau bukan bundle, skip
-                    if not item.is_bundle:
-                        continue
-                    
-            
-                row = {}
-                row.update(item)
-                row.update(
-                    {
-                        "rate": item_price.get("price_list_rate") or 0,
-                        "currency": item_price.get("currency")
-                        or pos_profile.get("currency"),
-                        "item_barcode": item_barcode or [],
-                        "actual_qty": item_stock_qty or 0,
-                        "serial_no_data": serial_no_data or [],
-                        "batch_no_data": batch_no_data or [],
-                        "attributes": attributes or "",
-                        "item_attributes": item_attributes or "",
-                    }
-                )
-                result.append(row)
+                if posa_display_items_in_stock and (
+                    not item_stock_qty or item_stock_qty < 0
+                ):
+                    pass
+                else:
+                    row = {}
+                    row.update(item)
+                    row.update(
+                        {
+                            "rate": item_price.get("price_list_rate") or 0,
+                            "currency": item_price.get("currency")
+                            or pos_profile.get("currency"),
+                            "item_barcode": item_barcode or [],
+                            "actual_qty": item_stock_qty or 0,
+                            "serial_no_data": serial_no_data or [],
+                            "batch_no_data": batch_no_data or [],
+                            "attributes": attributes or "",
+                            "item_attributes": item_attributes or "",
+                        }
+                    )
+                    result.append(row)
         return result
 
     if _pos_profile.get("posa_use_server_cache"):

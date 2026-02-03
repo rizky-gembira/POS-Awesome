@@ -2,32 +2,6 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on('POS Closing Shift', {
-	refresh: function (frm) {
-		// -----------------------------
-		// Add Recalculate Button
-		// -----------------------------
-		// Show only if saved (not local), not submitted
-		if (frm.doc.docstatus === 0 && !frm.is_new()) {
-			frm.add_custom_button(__('Recalculate'), () => {
-				if (frm.doc.pos_opening_shift && frm.doc.user) {
-					
-					// Freeze UI to block interactions
-					frappe.dom.freeze(__('Recalculating...'));
-					
-					reset_values(frm);
-					frappe.run_serially([
-						() => frm.trigger("set_opening_amounts"),
-						() => frm.trigger("get_pos_invoices"),
-						() => frm.trigger("get_pos_payments"),
-						() => frm.trigger("save_action")
-					]);
-				} else {
-					frappe.msgprint(__('Please select POS Opening Shift and User before recalculating.'));
-				}
-			}).css({ 'background': 'purple', 'color': 'white' });
-		}
-	},
-
 	onload: function (frm) {
 		frm.set_query("pos_profile", function (doc) {
 			return {
@@ -101,13 +75,6 @@ frappe.ui.form.on('POS Closing Shift', {
 				refresh_fields(frm);
 				set_html_data(frm);
 			}
-		});
-	},
-	
-	save_action(frm) {
-		return frm.save().then(() => {
-			// Unfreeze UI after final save
-			frappe.dom.unfreeze();
 		});
 	}
 });

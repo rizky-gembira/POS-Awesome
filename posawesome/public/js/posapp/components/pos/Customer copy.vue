@@ -160,32 +160,9 @@ export default {
   },
 
   watch: {
-  customer(newCustomer) {
-    evntBus.$emit('update_customer', newCustomer);
-
-    if (!newCustomer) return;
-
-    frappe.call({
-      method: "posawesome.posawesome.api.customer.check_customer_status",
-      args: { customer: newCustomer },
-      callback: function (r) {
-        if (r.message) {
-          if (r.message.status === "disabled") {
-            frappe.msgprint({
-              title: __("Customer Disabled"),
-              indicator: "red",
-              message: r.message.message,
-            });
-          } else if (r.message.status === "enabled") {
-            frappe.show_alert({
-              message: r.message.message,
-              indicator: "green",
-            });
-          }
-        }
-      }
-    });
-  }
-}
+    customer() {
+      evntBus.$emit('update_customer', this.customer);
+    },
+  },
 };
 </script>

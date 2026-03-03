@@ -2734,80 +2734,52 @@ export default {
     },
     // Custom Offer Method Started Here
     ApplyOnTotal(offer) {
-      // Normalize to the full offer object if needed
-      let posOffer = offer;
-      if (!posOffer.name) {
-        posOffer = this.posOffers.find((pos) => pos.name === (offer.offer_name || offer.name)) || offer;
+      if (!offer.name) {
+          offer = this.posOffers.find(posOffer => posOffer.name === offer.offer_name);
       }
-
-      const baseTotal = this.Total || 0;
-
-      // Gather all grand-total offers currently applied on invoice (from posa_offers)
-      const appliedInvoiceOffers = this.posa_offers.filter((o) => o.offer === "Grand Total");
-
-      // Map to the full offer objects (from posOffers) when available
-      const appliedFullOffers = appliedInvoiceOffers.map((o) => {
-        return this.posOffers.find((p) => p.row_id === o.row_id) || this.posOffers.find((p) => p.name === o.offer_name) || o;
-      });
-
-      // Include the incoming offer if it's not already in the list
-      const exists = appliedFullOffers.some((o) => (o.row_id && posOffer.row_id && o.row_id === posOffer.row_id) || (o.name && posOffer.name && o.name === posOffer.name) || (o.name && posOffer.offer_name && o.name === posOffer.offer_name));
-      if (!exists) {
-        appliedFullOffers.push(posOffer);
+      if (!this.discount_percentage_offer_name || this.discount_percentage_offer_name === offer.name) {
+          if (offer.discount_percentage > 0 && offer.discount_percentage <= 100) {
+              const discountAmount = this.flt(this.Total) * parseFloat(offer.discount_percentage) / 100;
+              this.discount_amount = this.flt(discountAmount, this.currency_precision);
+              this.discount_percentage_offer_name = offer.name;
+          }
+          else if (offer.discount_percentage > 100)
+          {
+              const discountAmount = offer.discount_percentage;
+              this.discount_amount = this.flt(discountAmount, this.currency_precision);
+              this.discount_percentage_offer_name = offer.name;
+          }
       }
-
-      // Sum discounts for all applied grand-total offers. For percentage-type discounts we use the base Total (no sequential compounding).
-      const totalDiscount = appliedFullOffers.reduce((acc, ofr) => {
-        let discount = 0;
-        if (ofr.discount_percentage && ofr.discount_percentage > 0 && ofr.discount_percentage <= 100) {
-          discount = baseTotal * parseFloat(ofr.discount_percentage) / 100;
-        } else if (ofr.discount_percentage && ofr.discount_percentage > 100) {
-          // Treat >100 as absolute discount value
-          discount = parseFloat(ofr.discount_percentage) || 0;
-        } else if (ofr.discount_amount && ofr.discount_amount > 0) {
-          discount = parseFloat(ofr.discount_amount) || 0;
-        }
-        return acc + discount;
-      }, 0);
-
-      this.discount_amount = this.flt(totalDiscount, this.currency_precision);
-      // Reset any single-offer lock so multiple coupons can be combined
-      this.discount_percentage_offer_name = null;
-    },
+  },
 
     // End Custom Offer Method Here  
 
+    // ApplyOnTotal(offer) {
+    //   if (!offer.name) {
+    //     offer = this.posOffers.find((el) => el.name == offer.offer_name);
+    //   }
+    //   if (
+    //     (!this.discount_percentage_offer_name ||
+    //       this.discount_percentage_offer_name == offer.name) &&
+    //     offer.discount_percentage > 0 &&
+    //     offer.discount_percentage <= 100
+    //   ) {
+    //     this.discount_amount = this.flt(
+    //       (flt(this.Total) * flt(offer.discount_percentage)) / 100,
+    //       this.currency_precision
+    //     );
+    //     this.discount_percentage_offer_name = offer.name;
+    //   }
+    // },
+
     RemoveOnTotal(offer) {
-      // Recompute discount_amount after a grand-total offer is removed.
-      // The incoming "offer" may be an invoiceOffer object; exclude it and sum remaining grand-total offers.
-      const removedRowId = offer.row_id || null;
-      const remainingInvoiceOffers = this.posa_offers.filter((o) => o.offer === "Grand Total" && o.row_id !== removedRowId);
-      const baseTotal = this.Total || 0;
-
-      const remainingFullOffers = remainingInvoiceOffers.map((o) => {
-        return this.posOffers.find((p) => p.row_id === o.row_id) || this.posOffers.find((p) => p.name === o.offer_name) || o;
-      });
-
-      if (remainingFullOffers.length === 0) {
+      if (
+        this.discount_percentage_offer_name &&
+        this.discount_percentage_offer_name == offer.offer_name
+      ) {
         this.discount_amount = 0;
         this.discount_percentage_offer_name = null;
-        return;
       }
-
-      const totalDiscount = remainingFullOffers.reduce((acc, ofr) => {
-        let discount = 0;
-        if (ofr.discount_percentage && ofr.discount_percentage > 0 && ofr.discount_percentage <= 100) {
-          discount = baseTotal * parseFloat(ofr.discount_percentage) / 100;
-        } else if (ofr.discount_percentage && ofr.discount_percentage > 100) {
-          discount = parseFloat(ofr.discount_percentage) || 0;
-        } else if (ofr.discount_amount && ofr.discount_amount > 0) {
-          discount = parseFloat(ofr.discount_amount) || 0;
-        }
-        return acc + discount;
-      }, 0);
-
-      this.discount_amount = this.flt(totalDiscount, this.currency_precision);
-      this.discount_percentage_offer_name = null;
     },
 
     addOfferToItems(offer) {

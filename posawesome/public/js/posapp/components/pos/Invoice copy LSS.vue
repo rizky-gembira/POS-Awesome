@@ -2099,35 +2099,9 @@ export default {
       return result;
     },
 
-    // checkOfferIsAppley(item, offer) {
-    //   let applied = false;
-    //   const item_offers = JSON.parse(item.posa_offers);
-    //   for (const row_id of item_offers) {
-    //     const exist_offer = this.posa_offers.find((el) => row_id == el.row_id);
-    //     if (exist_offer && exist_offer.offer_name == offer.name) {
-    //       applied = true;
-    //       break;
-    //     }
-    //   }
-    //   return applied;
-    // },
-
     checkOfferIsAppley(item, offer) {
       let applied = false;
-
-      let item_offers = [];
-
-      if (item.posa_offers) {
-        try {
-          item_offers =
-            typeof item.posa_offers === "string"
-              ? JSON.parse(item.posa_offers)
-              : item.posa_offers;
-        } catch (e) {
-          item_offers = [];
-        }
-      }
-
+      const item_offers = JSON.parse(item.posa_offers);
       for (const row_id of item_offers) {
         const exist_offer = this.posa_offers.find((el) => row_id == el.row_id);
         if (exist_offer && exist_offer.offer_name == offer.name) {
@@ -2135,10 +2109,8 @@ export default {
           break;
         }
       }
-
       return applied;
     },
-
 
     handelOffers() {
       const offers = [];
@@ -2422,94 +2394,175 @@ export default {
 
     updateInvoiceOffers(offers) {
 
+  // ===============================
+  // HAPUS OFFER YANG SUDAH TIDAK ADA
+  // ===============================
+  this.posa_offers.forEach((invoiceOffer) => {
+    const existOffer = offers.find(
+      (offer) => invoiceOffer.row_id == offer.row_id
+    );
+    if (!existOffer) {
+      this.removeApplyOffer(invoiceOffer);
+    }
+  });
+
+  // ===============================
+  // PROSES SEMUA OFFER
+  // ===============================
+  offers.forEach((offer) => {
+
+    const existOffer = this.posa_offers.find(
+      (invoiceOffer) => invoiceOffer.row_id == offer.row_id
+    );
+
+    if (existOffer) {
+
+      existOffer.items = JSON.stringify(offer.items);
+      existOffer.offer_tag = offer.offer_tag; // ✅ tetap dipakai (production)
+
       // ===============================
-      // REMOVE OFFER YANG SUDAH HILANG
+      // GIVE PRODUCT
       // ===============================
-      this.posa_offers.forEach((invoiceOffer) => {
-        const existOffer = offers.find(
-          (offer) => invoiceOffer.row_id == offer.row_id
+      if (
+        existOffer.offer === "Give Product" &&
+        existOffer.give_item &&
+        existOffer.give_item != offer.give_item
+      ) {
+
+        const item_to_remove = this.items.find(
+          (item) => item.posa_row_id == existOffer.give_item_row_id
         );
-        if (!existOffer) {
-          this.removeApplyOffer(invoiceOffer);
+
+        if (item_to_remove) {
+          const updated_item_offers = offer.items.filter(
+            (row_id) => row_id != item_to_remove.posa_row_id
+          );
+          offer.items = updated_item_offers;
+          this.remove_item(item_to_remove);
+          existOffer.give_item_row_id = null;
+          existOffer.give_item = null;
         }
-      });
 
-      // ===============================
-      // PROSES SEMUA OFFER
-      // ===============================
-      offers.forEach((offer) => {
+        const newItemOffer = this.ApplyOnGiveProduct(offer);
 
-        const existOffer = this.posa_offers.find(
-          (invoiceOffer) => invoiceOffer.row_id == offer.row_id
-        );
+        if (offer.replace_cheapest_item) {
 
-        if (existOffer) {
+          const cheapestItem = this.getCheapestItem(offer);
+          const oldBaseItem = this.items.find(
+            (el) => el.posa_row_id == item_to_remove.posa_is_replace
+          );
 
-          existOffer.items = JSON.stringify(offer.items);
-          existOffer.offer_tag = offer.offer_tag; // <-- Tambahkan ini Ikky 2
+          newItemOffer.qty = item_to_remove.qty;
 
-          // -------------------------------
-          // GIVE PRODUCT
-          // -------------------------------
-          if (
-            existOffer.offer === "Give Product" &&
-            existOffer.give_item &&
-            existOffer.give_item != offer.give_item
-          ) {
-
-            const item_to_remove = this.items.find(
-              (item) => item.posa_row_id == existOffer.give_item_row_id
+          if (oldBaseItem && !oldBaseItem.posa_is_replace) {
+            oldBaseItem.qty += item_to_remove.qty;
+          } else {
+            const restoredItem = this.ApplyOnGiveProduct(
+              { given_qty: item_to_remove.qty },
+              item_to_remove.item_code
             );
-
-            if (item_to_remove) {
-              const updated_item_offers = offer.items.filter(
-                (row_id) => row_id != item_to_remove.posa_row_id
-              );
-              offer.items = updated_item_offers;
-              this.remove_item(item_to_remove);
-              existOffer.give_item_row_id = null;
-              existOffer.give_item = null;
-            }
-
-            const newItemOffer = this.ApplyOnGiveProduct(offer);
-            this.items.unshift(newItemOffer);
-
-            existOffer.give_item_row_id = newItemOffer.posa_row_id;
-            existOffer.give_item = newItemOffer.item_code;
+            restoredItem.posa_is_offer = 0;
+            this.items.unshift(restoredItem);
           }
 
-          // -------------------------------
-          // ITEM PRICE
-          // -------------------------------
-          else if (existOffer.offer === "Item Price") {
-            this.ApplyOnPrice(offer);
+          newItemOffer.posa_is_offer = 0;
+          newItemOffer.posa_is_replace = cheapestItem.posa_row_id;
+
+          const diffQty = cheapestItem.qty - newItemOffer.qty;
+
+          if (diffQty <= 0) {
+            newItemOffer.qty += diffQty;
+            this.remove_item(cheapestItem);
+            newItemOffer.posa_row_id = cheapestItem.posa_row_id;
+            newItemOffer.posa_is_replace = newItemOffer.posa_row_id;
+          } else {
+            cheapestItem.qty = diffQty;
           }
-
-          // -------------------------------
-          // GRAND TOTAL (Offer Normal)
-          // -------------------------------
-          else if (existOffer.offer === "Grand Total") {
-            this.ApplyOnTotal(offer);
-          }
-
-          this.addOfferToItems(existOffer);
-
-        } else {
-          this.applyNewOffer(offer);
         }
 
-      });
-
-      // ===============================
-      // FINAL STEP → HANDLE MULTIPLE COUPON
-      // ===============================
-      const hasCoupon = this.posa_coupons.some(c => c.applied);
-
-      if (hasCoupon) {
-        this.ApplyOnTotal("all");
+        this.items.unshift(newItemOffer);
+        existOffer.give_item_row_id = newItemOffer.posa_row_id;
+        existOffer.give_item = newItemOffer.item_code;
       }
 
-    },
+      // ===============================
+      // UPDATE QTY GIVE PRODUCT
+      // ===============================
+      else if (
+        existOffer.offer === "Give Product" &&
+        existOffer.give_item &&
+        existOffer.give_item == offer.give_item &&
+        (offer.replace_item || offer.replace_cheapest_item)
+      ) {
+
+        this.$nextTick(function () {
+
+          const offerItem = this.getItemFromRowID(
+            existOffer.give_item_row_id
+          );
+
+          const diff = offer.given_qty - offerItem.qty;
+
+          if (diff > 0) {
+
+            const itemsRowID = JSON.parse(existOffer.items);
+            const itemsList = [];
+
+            itemsRowID.forEach((row_id) => {
+              itemsList.push(this.getItemFromRowID(row_id));
+            });
+
+            const existItem = itemsList.find(
+              (el) =>
+                el.item_code == offerItem.item_code &&
+                el.posa_is_replace != offerItem.posa_row_id
+            );
+
+            if (existItem) {
+              const diffExistQty = existItem.qty - diff;
+
+              if (diffExistQty > 0) {
+                offerItem.qty += diff;
+                existItem.qty -= diff;
+              } else {
+                offerItem.qty += existItem.qty;
+                this.remove_item(existItem);
+              }
+            }
+          }
+        });
+      }
+
+      // ===============================
+      // ITEM PRICE
+      // ===============================
+      else if (existOffer.offer === "Item Price") {
+        this.ApplyOnPrice(offer);
+      }
+
+      // ===============================
+      // GRAND TOTAL (Offer biasa)
+      // ===============================
+      else if (existOffer.offer === "Grand Total") {
+        this.ApplyOnTotal(offer); // ✅ tetap single mode
+      }
+
+      this.addOfferToItems(existOffer);
+
+    } else {
+      this.applyNewOffer(offer);
+    }
+
+  });
+
+  // ===============================
+  // FINAL STEP → HANDLE MULTIPLE COUPON
+  // ===============================
+  if (this.posa_coupons.some(c => c.applied)) {
+    this.ApplyOnTotal("all"); // ✅ override hanya jika ada coupon aktif
+  }
+
+},
 
     removeApplyOffer(invoiceOffer) {
       if (invoiceOffer.offer === "Item Price") {
@@ -2735,85 +2788,182 @@ export default {
         }
       });
     },
-    // Custom Offer Method Started Here
-    ApplyOnTotal(offer) {
+    // // Custom Offer Method Started Here
+    // ApplyOnTotal(offer) {
+    //   // Normalize to the full offer object if needed
+    //   let posOffer = offer;
+    //   if (!posOffer.name) {
+    //     posOffer = this.posOffers.find((pos) => pos.name === (offer.offer_name || offer.name)) || offer;
+    //   }
 
-      // ===============================
-      // MODE MULTIPLE COUPON ("all")
-      // ===============================
-      if (offer === "all") {
+    //   const baseTotal = this.Total || 0;
 
-        let total_discount = 0;
+    //   // Gather all grand-total offers currently applied on invoice (from posa_offers)
+    //   const appliedInvoiceOffers = this.posa_offers.filter((o) => o.offer === "Grand Total");
 
-        this.posa_coupons.forEach(coupon => {
-          if (!coupon.applied) return;
+    //   // Map to the full offer objects (from posOffers) when available
+    //   const appliedFullOffers = appliedInvoiceOffers.map((o) => {
+    //     return this.posOffers.find((p) => p.row_id === o.row_id) || this.posOffers.find((p) => p.name === o.offer_name) || o;
+    //   });
 
-          const o = this.posOffers.find(x => x.name === coupon.pos_offer);
-          if (!o || o.offer !== "Grand Total") return;
+    //   // Include the incoming offer if it's not already in the list
+    //   const exists = appliedFullOffers.some((o) => (o.row_id && posOffer.row_id && o.row_id === posOffer.row_id) || (o.name && posOffer.name && o.name === posOffer.name) || (o.name && posOffer.offer_name && o.name === posOffer.offer_name));
+    //   if (!exists) {
+    //     appliedFullOffers.push(posOffer);
+    //   }
 
-          if (o.discount_percentage > 0 && o.discount_percentage <= 100) {
-            total_discount += (this.Total * parseFloat(o.discount_percentage)) / 100;
-          }
-          else if (o.discount_percentage > 100) {
-            total_discount += parseFloat(o.discount_percentage);
-          }
-          else if (o.discount_amount && o.discount_amount > 0) {
-            total_discount += parseFloat(o.discount_amount);
-          }
-        });
+    //   // Sum discounts for all applied grand-total offers. For percentage-type discounts we use the base Total (no sequential compounding).
+    //   const totalDiscount = appliedFullOffers.reduce((acc, ofr) => {
+    //     let discount = 0;
+    //     if (ofr.discount_percentage && ofr.discount_percentage > 0 && ofr.discount_percentage <= 100) {
+    //       discount = baseTotal * parseFloat(ofr.discount_percentage) / 100;
+    //     } else if (ofr.discount_percentage && ofr.discount_percentage > 100) {
+    //       // Treat >100 as absolute discount value
+    //       discount = parseFloat(ofr.discount_percentage) || 0;
+    //     } else if (ofr.discount_amount && ofr.discount_amount > 0) {
+    //       discount = parseFloat(ofr.discount_amount) || 0;
+    //     }
+    //     return acc + discount;
+    //   }, 0);
 
-        this.discount_amount = this.flt(total_discount, this.currency_precision);
-
-        // 🔥 penting agar offer biasa tidak terkunci
-        this.discount_percentage_offer_name = null;
-
-        return;
-      }
-
-      // ===============================
-      // MODE OFFER NORMAL (SINGLE)
-      // ===============================
-      if (!offer.name) {
-        offer = this.posOffers.find(
-          posOffer => posOffer.name === offer.offer_name
-        );
-      }
-
-      if (
-        !this.discount_percentage_offer_name ||
-        this.discount_percentage_offer_name === offer.name
-      ) {
-
-        if (offer.discount_percentage > 0 && offer.discount_percentage <= 100) {
-
-          const discountAmount =
-            (this.flt(this.Total) * parseFloat(offer.discount_percentage)) / 100;
-
-          this.discount_amount = this.flt(discountAmount, this.currency_precision);
-          this.discount_percentage_offer_name = offer.name;
-        }
-
-        else if (offer.discount_percentage > 100) {
-
-          const discountAmount = parseFloat(offer.discount_percentage);
-
-          this.discount_amount = this.flt(discountAmount, this.currency_precision);
-          this.discount_percentage_offer_name = offer.name;
-        }
-
-        else if (offer.discount_amount && offer.discount_amount > 0) {
-
-          this.discount_amount = this.flt(
-            parseFloat(offer.discount_amount),
-            this.currency_precision
-          );
-
-          this.discount_percentage_offer_name = offer.name;
-        }
-      }
-    },
+    //   this.discount_amount = this.flt(totalDiscount, this.currency_precision);
+    //   // Reset any single-offer lock so multiple coupons can be combined
+    //   this.discount_percentage_offer_name = null;
+    // },
 
     // End Custom Offer Method Here  
+
+    // RemoveOnTotal(offer) {
+    //   // Recompute discount_amount after a grand-total offer is removed.
+    //   // The incoming "offer" may be an invoiceOffer object; exclude it and sum remaining grand-total offers.
+    //   const removedRowId = offer.row_id || null;
+    //   const remainingInvoiceOffers = this.posa_offers.filter((o) => o.offer === "Grand Total" && o.row_id !== removedRowId);
+    //   const baseTotal = this.Total || 0;
+
+    //   const remainingFullOffers = remainingInvoiceOffers.map((o) => {
+    //     return this.posOffers.find((p) => p.row_id === o.row_id) || this.posOffers.find((p) => p.name === o.offer_name) || o;
+    //   });
+
+    //   if (remainingFullOffers.length === 0) {
+    //     this.discount_amount = 0;
+    //     this.discount_percentage_offer_name = null;
+    //     return;
+    //   }
+
+    //   const totalDiscount = remainingFullOffers.reduce((acc, ofr) => {
+    //     let discount = 0;
+    //     if (ofr.discount_percentage && ofr.discount_percentage > 0 && ofr.discount_percentage <= 100) {
+    //       discount = baseTotal * parseFloat(ofr.discount_percentage) / 100;
+    //     } else if (ofr.discount_percentage && ofr.discount_percentage > 100) {
+    //       discount = parseFloat(ofr.discount_percentage) || 0;
+    //     } else if (ofr.discount_amount && ofr.discount_amount > 0) {
+    //       discount = parseFloat(ofr.discount_amount) || 0;
+    //     }
+    //     return acc + discount;
+    //   }, 0);
+
+    //   this.discount_amount = this.flt(totalDiscount, this.currency_precision);
+    //   this.discount_percentage_offer_name = null;
+    // },
+
+    ApplyOnTotal(offer) {
+      // Normalisasi offer object
+      let posOffer = offer;
+      if (!posOffer.name) {
+          posOffer = this.posOffers.find(
+              (pos) => pos.name === (offer.offer_name || offer.name)
+          ) || offer;
+      }
+
+      const baseTotal = this.Total || 0;
+
+      // ================================
+      // CASE 1: NON COUPON (Single Mode)
+      // ================================
+      if (!posOffer.coupon_based) {
+
+          // Hapus semua grand total offers yang sudah ada
+          this.posa_offers = this.posa_offers.filter(
+              (o) => o.offer !== "Grand Total"
+          );
+
+          // Tambahkan hanya offer ini
+          this.posa_offers.push({
+              offer: "Grand Total",
+              offer_name: posOffer.name,
+              row_id: posOffer.row_id
+          });
+
+          // Hitung seperti metode 1
+          let discountAmount = 0;
+
+          if (posOffer.discount_percentage > 0 && posOffer.discount_percentage <= 100) {
+              discountAmount = baseTotal * parseFloat(posOffer.discount_percentage) / 100;
+          }
+          else if (posOffer.discount_percentage > 100) {
+              discountAmount = parseFloat(posOffer.discount_percentage) || 0;
+          }
+
+          this.discount_amount = this.flt(discountAmount, this.currency_precision);
+
+          return;
+      }
+
+      // ================================
+      // CASE 2: COUPON BASED (Multi Mode)
+      // ================================
+
+      // Hapus dulu semua non-coupon grand total
+      this.posa_offers = this.posa_offers.filter((o) => {
+          const full = this.posOffers.find(p => p.row_id === o.row_id || p.name === o.offer_name);
+          return !(o.offer === "Grand Total" && full && !full.coupon_based);
+      });
+
+      // Tambahkan coupon jika belum ada
+      const exists = this.posa_offers.some(
+          (o) => o.offer === "Grand Total" &&
+                (o.row_id === posOffer.row_id || o.offer_name === posOffer.name)
+      );
+
+      if (!exists) {
+          this.posa_offers.push({
+              offer: "Grand Total",
+              offer_name: posOffer.name,
+              row_id: posOffer.row_id
+          });
+      }
+
+      // Hitung semua coupon grand total
+      const appliedCoupons = this.posa_offers.filter(
+          (o) => o.offer === "Grand Total"
+      );
+
+      const totalDiscount = appliedCoupons.reduce((acc, o) => {
+
+          const full = this.posOffers.find(
+              p => p.row_id === o.row_id || p.name === o.offer_name
+          );
+
+          if (!full) return acc;
+
+          let discount = 0;
+
+          if (full.discount_percentage > 0 && full.discount_percentage <= 100) {
+              discount = baseTotal * parseFloat(full.discount_percentage) / 100;
+          }
+          else if (full.discount_percentage > 100) {
+              discount = parseFloat(full.discount_percentage) || 0;
+          }
+          else if (full.discount_amount > 0) {
+              discount = parseFloat(full.discount_amount) || 0;
+          }
+
+          return acc + discount;
+
+      }, 0);
+
+      this.discount_amount = this.flt(totalDiscount, this.currency_precision);
+  },
 
     RemoveOnTotal(offer) {
       if (
@@ -2825,61 +2975,20 @@ export default {
       }
     },
 
-    // addOfferToItems(offer) {
-    //   const offer_items = JSON.parse(offer.items);
-    //   offer_items.forEach((el) => {
-    //     this.items.forEach((exist_item) => {
-    //       if (exist_item.posa_row_id == el) {
-    //         const item_offers = JSON.parse(exist_item.posa_offers);
-    //         if (!item_offers.includes(offer.row_id)) {
-    //           item_offers.push(offer.row_id);
-    //           if (offer.offer === "Item Price") {
-    //             exist_item.posa_offer_applied = 1;
-    //             exist_item.offer_tag = offer.offer_tag; // <-- Tambahkan ini Ikky
-    //           }
-    //         }
-    //         exist_item.posa_offers = JSON.stringify(item_offers);
-    //       }
-    //     });
-    //   });
-    // },
 
     addOfferToItems(offer) {
-      let offer_items = [];
-
-      try {
-        offer_items =
-          typeof offer.items === "string"
-            ? JSON.parse(offer.items)
-            : offer.items || [];
-      } catch (e) {
-        offer_items = [];
-      }
-
+      const offer_items = JSON.parse(offer.items);
       offer_items.forEach((el) => {
         this.items.forEach((exist_item) => {
           if (exist_item.posa_row_id == el) {
-
-            let item_offers = [];
-
-            try {
-              item_offers =
-                typeof exist_item.posa_offers === "string"
-                  ? JSON.parse(exist_item.posa_offers)
-                  : exist_item.posa_offers || [];
-            } catch (e) {
-              item_offers = [];
-            }
-
+            const item_offers = JSON.parse(exist_item.posa_offers);
             if (!item_offers.includes(offer.row_id)) {
               item_offers.push(offer.row_id);
-
               if (offer.offer === "Item Price") {
                 exist_item.posa_offer_applied = 1;
-                exist_item.offer_tag = offer.offer_tag;
+                exist_item.offer_tag = offer.offer_tag; // <-- Tambahkan ini Ikky
               }
             }
-
             exist_item.posa_offers = JSON.stringify(item_offers);
           }
         });
